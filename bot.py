@@ -17,6 +17,15 @@ def send_message(chat_id, text, keyboard=None):
         data["reply_markup"] = json.dumps(keyboard)
     requests.post(url, json=data)
 
+def is_admin(chat_id, user_id):
+    url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMember"
+    params = {"chat_id": chat_id, "user_id": user_id}
+    r = requests.get(url, params=params)
+    if r.status_code == 200:
+        status = r.json().get("result", {}).get("status", "")
+        return status in ["creator", "administrator"]
+    return False
+
 def get_updates():
     global last_update_id
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
@@ -38,21 +47,26 @@ while True:
                 data = query["data"]
                 chat_id = query["message"]["chat"]["id"]
                 user_id = data.split("_")[1]
+                admin_id = query["from"]["id"]
+
+                if not is_admin(chat_id, admin_id):
+                    send_message(chat_id, "❌ Только админы могут это делать.")
+                    continue
 
                 if data.startswith("ban_"):
                     if user_id not in banned:
                         banned.append(user_id)
-                        send_message(chat_id, f"✅ Пользователь {user_id} заблокирован.")
+                        send_message(chat_id, f"✅ {user_id} забанен.")
                     continue
 
                 if data.startswith("unban_"):
                     if user_id in banned:
                         banned.remove(user_id)
-                        send_message(chat_id, f"✅ Пользователь {user_id} разблокирован.")
+                        send_message(chat_id, f"✅ {user_id} разбанен.")
                     continue
 
                 if data.startswith("reply_"):
-                    send_message(chat_id, f"✏️ Напиши ответ для клиента {user_id} в эту группу.")
+                    send_message(chat_id, f"✏️ Напиши ответ для {user_id}:")
                     continue
 
             # === СООБЩЕНИЯ ===
@@ -81,26 +95,32 @@ while True:
                             ]
                         }
                         send_message(GROUP_ID, f"📩 {name} (ID: {user_id}):\n{text}", keyboard)
-                        send_message(chat_id, "✅ Отправлено в поддержку!")
+                        send_message(chat_id, "✅ Отправлено!")
 
                 # === ГРУППА ===
                 elif chat_id == GROUP_ID:
-                    # Если сотрудник пишет ответ на клиента (через кнопку)
-                    if text and "reply_" in text:
-                        # Ищем ID клиента из последнего сообщения
-                        for update2 in updates:
-                            if "callback_query" in update2:
-                                continue
-                        continue
-
-                    # Обычный ответ через "Ответить"
+                    # Если сотрудник ответил на сообщение клиента
                     if msg.reply_to_message:
                         original = msg.reply_to_message
                         match = re.search(r"ID: (\d+)", original.get("text", ""))
+
                         if match:
                             client_id = match.group(1)
-                            send_message(client_id, f"📨 {text}")
-                            send_message(chat_id, "✅ Ответ отправлен!")
+
+                            # Если клиент забанен — показываем кнопку "Разблокировать"
+                            if client_id in banned:
+                                keyboard = {
+                                    "inline_keyboard": [
+                                        [
+                                            {"text": "🔓 Разблокировать", "callback_data": f"unban_{client_id}"}
+                                        ]
+                                    ]
+                                }
+                                send_message(chat_id, f"⚠️ Клиент {client_id} забанен.", keyboard)
+                            else:
+                                # Обычный ответ
+                                send_message(client_id, f"📨 {text}")
+                                send_message(chat_id, "✅ Ответ отправлен!")
 
         time.sleep(1)
     except Exception as e:
