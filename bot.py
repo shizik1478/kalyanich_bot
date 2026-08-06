@@ -41,7 +41,7 @@ while True:
         for update in updates:
             last_update_id = update["update_id"]
 
-            # === НАЖАТИЕ НА КНОПКУ ===
+            # === КНОПКИ ===
             if "callback_query" in update:
                 query = update["callback_query"]
                 data = query["data"]
@@ -99,26 +99,39 @@ while True:
 
                 # === ГРУППА ===
                 elif chat_id == GROUP_ID:
-                    # Если сотрудник ответил на сообщение клиента
+                    # === КОМАНДА /unban <ID> ===
+                    if text.startswith("/unban"):
+                        if not is_admin(chat_id, user_id):
+                            send_message(chat_id, "❌ Только админы могут разблокировать.")
+                            continue
+
+                        parts = text.split()
+                        if len(parts) < 2:
+                            send_message(chat_id, "ℹ️ Используй: /unban <ID>")
+                            continue
+
+                        target_id = parts[1].strip()
+                        if target_id in banned:
+                            banned.remove(target_id)
+                            send_message(chat_id, f"✅ Пользователь {target_id} разблокирован.")
+                        else:
+                            send_message(chat_id, f"ℹ️ Пользователь {target_id} не заблокирован.")
+                        continue
+
+                    # Обычный ответ на сообщение
                     if msg.reply_to_message:
                         original = msg.reply_to_message
                         match = re.search(r"ID: (\d+)", original.get("text", ""))
-
                         if match:
                             client_id = match.group(1)
-
-                            # Если клиент забанен — показываем кнопку "Разблокировать"
                             if client_id in banned:
                                 keyboard = {
                                     "inline_keyboard": [
-                                        [
-                                            {"text": "🔓 Разблокировать", "callback_data": f"unban_{client_id}"}
-                                        ]
+                                        [{"text": "🔓 Разблокировать", "callback_data": f"unban_{client_id}"}]
                                     ]
                                 }
                                 send_message(chat_id, f"⚠️ Клиент {client_id} забанен.", keyboard)
                             else:
-                                # Обычный ответ
                                 send_message(client_id, f"📨 {text}")
                                 send_message(chat_id, "✅ Ответ отправлен!")
 
