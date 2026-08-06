@@ -2,7 +2,7 @@ import os
 import time
 import requests
 
-BOT_TOKEN = os.environ.get("BOT_TOKEN") or "8944613696:AAg7iMUN7_0u40Y7EEO14c4-2L2wR6o"
+BOT_TOKEN = os.environ.get("BOT_TOKEN") or "8944613696:AAG7iMUW7_oU4O7fEQEISQsl4c4-2L2WR6o"
 GROUP_ID = os.environ.get("GROUP_ID") or "-1003920918666"
 
 last_update_id = 0
