@@ -9,7 +9,7 @@ GROUP_ID = "-1003920918666"
 
 last_update_id = 0
 banned = []
-waiting_for_reply = {}  # {chat_id: user_id}
+waiting_for_reply = {}
 
 def send_message(chat_id, text, keyboard=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
@@ -59,6 +59,14 @@ while True:
                         send_message(chat_id, f"ℹ️ Пользователь {user_id} уже заблокирован.")
                     continue
 
+                if data.startswith("unban_"):
+                    if user_id in banned:
+                        banned.remove(user_id)
+                        send_message(chat_id, f"✅ Пользователь {user_id} разблокирован.")
+                    else:
+                        send_message(chat_id, f"ℹ️ Пользователь {user_id} не заблокирован.")
+                    continue
+
                 if data.startswith("reply_"):
                     waiting_for_reply[chat_id] = user_id
                     send_message(chat_id, f"✏️ Напиши ответ для клиента {user_id}:")
@@ -75,7 +83,12 @@ while True:
                 # === ЛИЧКА ===
                 if chat_id != GROUP_ID:
                     if user_id in banned:
-                        send_message(chat_id, "❌ Вы заблокированы за спам.")
+                        keyboard = {
+                            "inline_keyboard": [
+                                [{"text": "🔓 Разблокировать", "callback_data": f"unban_{user_id}"}]
+                            ]
+                        }
+                        send_message(chat_id, "❌ Вы заблокированы за спам.", keyboard)
                         continue
 
                     if text == "/start":
@@ -86,7 +99,6 @@ while True:
 
                 # === ГРУППА ===
                 elif chat_id == GROUP_ID:
-                    # Если сотрудник в режиме ответа
                     if chat_id in waiting_for_reply:
                         client_id = waiting_for_reply[chat_id]
                         if text.strip():
@@ -95,7 +107,6 @@ while True:
                             del waiting_for_reply[chat_id]
                         continue
 
-                    # Обычный ответ на сообщение (если не через кнопку)
                     if msg.reply_to_message:
                         original = msg.reply_to_message
                         match = re.search(r"ID: (\d+)", original.get("text", ""))
