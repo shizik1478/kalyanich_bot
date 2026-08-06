@@ -1,25 +1,3 @@
-import os
-import time
-import requests
-
-BOT_TOKEN = os.environ.get("BOT_TOKEN") or "8944613696:AAG7iMUW7_oU4O7fEQEISQsl4c4-2L2WR6o"
-GROUP_ID = os.environ.get("GROUP_ID") or "-1003920918666"
-
-last_update_id = 0
-
-def send_message(chat_id, text):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
-    requests.post(url, json={"chat_id": chat_id, "text": text})
-
-def get_updates():
-    global last_update_id
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
-    params = {"offset": last_update_id + 1, "timeout": 30}
-    r = requests.get(url, params=params)
-    return r.json().get("result", [])
-
-print("🤖 Бот запущен!")
-
 while True:
     try:
         updates = get_updates()
