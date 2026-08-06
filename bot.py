@@ -59,14 +59,6 @@ while True:
                         send_message(chat_id, f"ℹ️ Пользователь {user_id} уже заблокирован.")
                     continue
 
-                if data.startswith("unban_"):
-                    if user_id in banned:
-                        banned.remove(user_id)
-                        send_message(chat_id, f"✅ Пользователь {user_id} разблокирован.")
-                    else:
-                        send_message(chat_id, f"ℹ️ Пользователь {user_id} не заблокирован.")
-                    continue
-
                 if data.startswith("reply_"):
                     waiting_for_reply[chat_id] = user_id
                     send_message(chat_id, f"✏️ Напиши ответ для клиента {user_id}:")
@@ -83,12 +75,7 @@ while True:
                 # === ЛИЧКА ===
                 if chat_id != GROUP_ID:
                     if user_id in banned:
-                        keyboard = {
-                            "inline_keyboard": [
-                                [{"text": "🔓 Разблокировать", "callback_data": f"unban_{user_id}"}]
-                            ]
-                        }
-                        send_message(chat_id, "❌ Вы заблокированы за спам.", keyboard)
+                        send_message(chat_id, "❌ Вы заблокированы за спам.")
                         continue
 
                     if text == "/start":
@@ -99,6 +86,25 @@ while True:
 
                 # === ГРУППА ===
                 elif chat_id == GROUP_ID:
+                    # === КОМАНДА /unban ===
+                    if text.lower().startswith("/unban"):
+                        if msg.reply_to_message:
+                            original = msg.reply_to_message
+                            match = re.search(r"ID: (\d+)", original.get("text", ""))
+                            if match:
+                                client_id = match.group(1)
+                                if client_id in banned:
+                                    banned.remove(client_id)
+                                    send_message(chat_id, f"✅ Пользователь {client_id} разблокирован.")
+                                else:
+                                    send_message(chat_id, f"ℹ️ Пользователь {client_id} не заблокирован.")
+                            else:
+                                send_message(chat_id, "❌ Не найден ID в сообщении.")
+                        else:
+                            send_message(chat_id, "ℹ️ Ответьте на сообщение клиента: /unban")
+                        continue
+
+                    # === ОТВЕТ НА СООБЩЕНИЕ ===
                     if chat_id in waiting_for_reply:
                         client_id = waiting_for_reply[chat_id]
                         if text.strip():
