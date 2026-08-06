@@ -8,7 +8,7 @@ BOT_TOKEN = "8944613696:AAG7iMUW7_oU4O7fEQEISQsl4c4-2L2WR6o"
 GROUP_ID = "-1003920918666"
 
 last_update_id = 0
-banned = []
+banned = {}  # {user_id: "причина"}
 
 def send_message(chat_id, text, keyboard=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
@@ -55,13 +55,13 @@ while True:
 
                 if data.startswith("ban_"):
                     if user_id not in banned:
-                        banned.append(user_id)
-                        send_message(chat_id, f"✅ {user_id} забанен.")
+                        banned[user_id] = "Без причины"
+                        send_message(chat_id, f"✅ {user_id} забанен. Причина: Без причины")
                     continue
 
                 if data.startswith("unban_"):
                     if user_id in banned:
-                        banned.remove(user_id)
+                        del banned[user_id]
                         send_message(chat_id, f"✅ {user_id} разбанен.")
                     continue
 
@@ -80,7 +80,8 @@ while True:
                 # === ЛИЧКА ===
                 if chat_id != GROUP_ID:
                     if user_id in banned:
-                        send_message(chat_id, "❌ Вы заблокированы.")
+                        reason = banned[user_id]
+                        send_message(chat_id, f"❌ Вы заблокированы. Причина: {reason}")
                         continue
 
                     if text == "/start":
@@ -99,7 +100,28 @@ while True:
 
                 # === ГРУППА ===
                 elif chat_id == GROUP_ID:
-                    # === КОМАНДА /unban <ID> ===
+                    # === КОМАНДА /ban ID причина ===
+                    if text.startswith("/ban"):
+                        if not is_admin(chat_id, user_id):
+                            send_message(chat_id, "❌ Только админы могут банить.")
+                            continue
+
+                        parts = text.split(maxsplit=2)
+                        if len(parts) < 2:
+                            send_message(chat_id, "ℹ️ Используй: /ban <ID> [причина]")
+                            continue
+
+                        target_id = parts[1].strip()
+                        reason = parts[2] if len(parts) > 2 else "Без причины"
+
+                        if target_id not in banned:
+                            banned[target_id] = reason
+                            send_message(chat_id, f"✅ {target_id} забанен. Причина: {reason}")
+                        else:
+                            send_message(chat_id, f"ℹ️ {target_id} уже забанен.")
+                        continue
+
+                    # === КОМАНДА /unban ID ===
                     if text.startswith("/unban"):
                         if not is_admin(chat_id, user_id):
                             send_message(chat_id, "❌ Только админы могут разблокировать.")
@@ -112,13 +134,13 @@ while True:
 
                         target_id = parts[1].strip()
                         if target_id in banned:
-                            banned.remove(target_id)
-                            send_message(chat_id, f"✅ Пользователь {target_id} разблокирован.")
+                            del banned[target_id]
+                            send_message(chat_id, f"✅ {target_id} разблокирован.")
                         else:
-                            send_message(chat_id, f"ℹ️ Пользователь {target_id} не заблокирован.")
+                            send_message(chat_id, f"ℹ️ {target_id} не заблокирован.")
                         continue
 
-                    # Обычный ответ на сообщение
+                    # === ОТВЕТ НА СООБЩЕНИЕ ===
                     if msg.reply_to_message:
                         original = msg.reply_to_message
                         match = re.search(r"ID: (\d+)", original.get("text", ""))
@@ -130,7 +152,8 @@ while True:
                                         [{"text": "🔓 Разблокировать", "callback_data": f"unban_{client_id}"}]
                                     ]
                                 }
-                                send_message(chat_id, f"⚠️ Клиент {client_id} забанен.", keyboard)
+                                reason = banned[client_id]
+                                send_message(chat_id, f"⚠️ Клиент {client_id} забанен. Причина: {reason}", keyboard)
                             else:
                                 send_message(client_id, f"📨 {text}")
                                 send_message(chat_id, "✅ Ответ отправлен!")
