@@ -102,7 +102,7 @@ while True:
                     if text == "/start":
                         send_message(chat_id, f"👋 Привет, {name}!")
                     else:
-                        # === СООБЩЕНИЕ В ГРУППУ С ПРОФИЛЕМ ===
+                        # === СООБЩЕНИЕ В ГРУППУ: ИМЯ КЛИКАБЕЛЬНО + ID + USERNAME + ТЕКСТ ===
                         profile_link = f"[{name}](tg://user?id={user_id})"
                         profile_text = (
                             f"📩 {profile_link}\n"
