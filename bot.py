@@ -102,14 +102,9 @@ while True:
                     if text == "/start":
                         send_message(chat_id, f"👋 Привет, {name}!")
                     else:
-                        # === СООБЩЕНИЕ В ГРУППУ: ИМЯ КЛИКАБЕЛЬНО + ID + USERNAME + ТЕКСТ ===
+                        # === СООБЩЕНИЕ В ГРУППУ: БЕЗ ПОДПИСЕЙ ===
                         profile_link = f"[{name}](tg://user?id={user_id})"
-                        profile_text = (
-                            f"📩 {profile_link}\n"
-                            f"🆔 ID: `{user_id}`\n"
-                            f"🔖 Username: @{username if username else '—'}\n"
-                            f"📝 Сообщение:\n{text}"
-                        )
+                        profile_text = f"{profile_link}\n`{user_id}`\n@{username if username else '—'}\n{text}"
 
                         keyboard = {
                             "inline_keyboard": [
@@ -197,7 +192,8 @@ while True:
                     # === ОТВЕТ НА СООБЩЕНИЕ ===
                     if msg.reply_to_message:
                         original = msg.reply_to_message
-                        match = re.search(r"ID: `(\d+)`", original.get("text", ""))
+                        # Ищем ID в тексте
+                        match = re.search(r"`(\d+)`", original.get("text", ""))
                         if match:
                             client_id = match.group(1)
                             if client_id in banned:
