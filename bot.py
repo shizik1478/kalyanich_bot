@@ -102,9 +102,8 @@ while True:
                     if text == "/start":
                         send_message(chat_id, f"👋 Привет, {name}!")
                     else:
-                        # === СООБЩЕНИЕ В ГРУППУ: БЕЗ ПОДПИСЕЙ ===
-                        profile_link = f"[{name}](tg://user?id={user_id})"
-                        profile_text = f"{profile_link}\n`{user_id}`\n@{username if username else '—'}\n{text}"
+                        # === ТОЛЬКО ID + USERNAME + ТЕКСТ ===
+                        profile_text = f"`{user_id}`\n@{username if username else '—'}\n{text}"
 
                         keyboard = {
                             "inline_keyboard": [
@@ -192,7 +191,6 @@ while True:
                     # === ОТВЕТ НА СООБЩЕНИЕ ===
                     if msg.reply_to_message:
                         original = msg.reply_to_message
-                        # Ищем ID в тексте
                         match = re.search(r"`(\d+)`", original.get("text", ""))
                         if match:
                             client_id = match.group(1)
