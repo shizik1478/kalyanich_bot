@@ -1,51 +1,56 @@
-import os
-import time
 import requests
+import time
 import json
 import re
+import os
 
-BOT_TOKEN = "8944613696:AAG7iMUW7_oU4O7fEQEISQsl4c4-2L2WR6o"
-GROUP_ID = "-1003920918666"
+BOT_TOKEN = os.getenv("BOT_TOKEN", "8997435855:AAF2AkcieOQ3a_fHGTuVqA2fCPZmnb7-a30")
+GROUP_ID = os.getenv("GROUP_ID", "-1003920918666")
+
+# === ПРОКСИ (для обхода блокировок) ===
+PROXY = {
+    "http": "socks5://45.95.234.102:1080",
+    "https": "socks5://45.95.234.102:1080"
+}
+
+session = requests.Session()
+session.proxies.update(PROXY)
+# =====================================
 
 last_update_id = 0
-banned = {}  # {user_id: "причина"}
+banned = {}
 
 def send_message(chat_id, text, keyboard=None):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/sendMessage"
     data = {"chat_id": chat_id, "text": text}
     if keyboard:
         data["reply_markup"] = json.dumps(keyboard)
-    requests.post(url, json=data)
+    try:
+        session.post(url, json=data, timeout=30)
+    except Exception as e:
+        print(f"❌ Ошибка отправки: {e}")
 
 def is_admin(chat_id, user_id):
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMember"
     params = {"chat_id": chat_id, "user_id": user_id}
-    r = requests.get(url, params=params)
-    if r.status_code == 200:
-        status = r.json().get("result", {}).get("status", "")
-        return status in ["creator", "administrator"]
+    try:
+        r = session.get(url, params=params, timeout=30)
+        if r.status_code == 200:
+            status = r.json().get("result", {}).get("status", "")
+            return status in ["creator", "administrator"]
+    except:
+        return False
     return False
-
-def get_user_info(user_id):
-    url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChat"
-    params = {"chat_id": user_id}
-    r = requests.get(url, params=params)
-    if r.status_code == 200:
-        data = r.json().get("result", {})
-        return {
-            "first_name": data.get("first_name", "Неизвестно"),
-            "last_name": data.get("last_name", ""),
-            "username": data.get("username", ""),
-            "id": data.get("id", user_id)
-        }
-    return None
 
 def get_updates():
     global last_update_id
     url = f"https://api.telegram.org/bot{BOT_TOKEN}/getUpdates"
     params = {"offset": last_update_id + 1, "timeout": 30}
-    r = requests.get(url, params=params)
-    return r.json().get("result", [])
+    try:
+        r = session.get(url, params=params, timeout=30)
+        return r.json().get("result", [])
+    except:
+        return []
 
 print("✅ Бот запущен!")
 
@@ -55,7 +60,6 @@ while True:
         for update in updates:
             last_update_id = update["update_id"]
 
-            # === КНОПКИ ===
             if "callback_query" in update:
                 query = update["callback_query"]
                 data = query["data"]
@@ -83,7 +87,6 @@ while True:
                     send_message(chat_id, f"✏️ Напиши ответ для {user_id}:")
                     continue
 
-            # === СООБЩЕНИЯ ===
             if "message" in update:
                 msg = update["message"]
                 chat_id = str(msg["chat"]["id"])
@@ -92,7 +95,6 @@ while True:
                 name = msg["chat"].get("first_name", "Клиент")
                 username = msg["chat"].get("username", "")
 
-                # === ЛИЧКА ===
                 if chat_id != GROUP_ID:
                     if user_id in banned:
                         reason = banned[user_id]
@@ -102,9 +104,7 @@ while True:
                     if text == "/start":
                         send_message(chat_id, f"👋 Привет, {name}!")
                     else:
-                        # === ТОЛЬКО ID + USERNAME + ТЕКСТ ===
                         profile_text = f"`{user_id}`\n@{username if username else '—'}\n{text}"
-
                         keyboard = {
                             "inline_keyboard": [
                                 [
@@ -116,9 +116,7 @@ while True:
                         send_message(GROUP_ID, profile_text, keyboard)
                         send_message(chat_id, "✅ Отправлено!")
 
-                # === ГРУППА ===
                 elif chat_id == GROUP_ID:
-                    # === КОМАНДА /profile ID ===
                     if text.startswith("/profile"):
                         if not is_admin(chat_id, user_id):
                             send_message(chat_id, "❌ Только админы могут смотреть профиль.")
@@ -130,25 +128,29 @@ while True:
                             continue
 
                         target_id = parts[1].strip()
-                        info = get_user_info(target_id)
-
-                        if info:
-                            profile_text = (
-                                f"👤 **Профиль клиента**\n"
-                                f"🆔 ID: `{info['id']}`\n"
-                                f"📛 Имя: {info['first_name']}\n"
-                                f"📛 Фамилия: {info['last_name'] or '—'}\n"
-                                f"🔖 Username: @{info['username'] if info['username'] else '—'}\n"
-                                f"🚫 Статус: {'❌ Забанен' if target_id in banned else '✅ Активен'}"
-                            )
-                            if target_id in banned:
-                                profile_text += f"\n📝 Причина бана: {banned[target_id]}"
-                            send_message(chat_id, profile_text)
-                        else:
+                        url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChat"
+                        params = {"chat_id": target_id}
+                        try:
+                            r = session.get(url, params=params, timeout=30)
+                            if r.status_code == 200:
+                                data = r.json().get("result", {})
+                                profile_text = (
+                                    f"👤 **Профиль клиента**\n"
+                                    f"🆔 ID: `{target_id}`\n"
+                                    f"📛 Имя: {data.get('first_name', 'Неизвестно')}\n"
+                                    f"📛 Фамилия: {data.get('last_name', '—')}\n"
+                                    f"🔖 Username: @{data.get('username', '—')}\n"
+                                    f"🚫 Статус: {'❌ Забанен' if target_id in banned else '✅ Активен'}"
+                                )
+                                if target_id in banned:
+                                    profile_text += f"\n📝 Причина бана: {banned[target_id]}"
+                                send_message(chat_id, profile_text)
+                            else:
+                                send_message(chat_id, f"❌ Не найден пользователь с ID: {target_id}")
+                        except:
                             send_message(chat_id, f"❌ Не найден пользователь с ID: {target_id}")
                         continue
 
-                    # === КОМАНДА /ban ID причина ===
                     if text.startswith("/ban"):
                         if not is_admin(chat_id, user_id):
                             send_message(chat_id, "❌ Только админы могут банить.")
@@ -169,7 +171,6 @@ while True:
                             send_message(chat_id, f"ℹ️ {target_id} уже забанен.")
                         continue
 
-                    # === КОМАНДА /unban ID ===
                     if text.startswith("/unban"):
                         if not is_admin(chat_id, user_id):
                             send_message(chat_id, "❌ Только админы могут разблокировать.")
@@ -188,7 +189,6 @@ while True:
                             send_message(chat_id, f"ℹ️ {target_id} не заблокирован.")
                         continue
 
-                    # === ОТВЕТ НА СООБЩЕНИЕ ===
                     if msg.reply_to_message:
                         original = msg.reply_to_message
                         match = re.search(r"`(\d+)`", original.get("text", ""))
