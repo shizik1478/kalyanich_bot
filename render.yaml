@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: kalyanich-bot
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: python3 bot.py
+    envVars:
+      - key: BOT_TOKEN
+        value: 8997435855:AAF2AkcieOQ3a_fHGTuVqA2fCPZmnb7-a30
+      - key: GROUP_ID
+        value: -1003920918666
